@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String      @id @default(uuid()) @db.Uuid
+  username              String      @unique
+  email                 String      @unique @db.VarChar(100)
+  passwordHash          String?
+  role                  String?     @db.VarChar(50)
+  resetToken            String?     @db.VarChar(255)
+  resetTokenExpiration  DateTime?
+  googleId              String?     @unique
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  profile               UserProfile?
+
+  @@map("users")
+}
+
+model UserProfile {
+  id                String                 @id @default(uuid()) @db.Uuid
+  userId            String                 @unique @db.Uuid
+  firstName         String
+  lastName          String
+  bio               String?
+  phoneNumber       String?
+  location          String?
+  profilePicture    String?
+  socialMediaLinks  Json?
+  resume            String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills            UserSkill[]
+  availability      UserAvailability[]
+  receivedReviews   CollegeStudentReview[] @relation("ReceivedReviews")
+  givenReviews      CollegeStudentReview[] @relation("GivenReviews")
+  studentBookings   Booking[]              @relation("StudentBookings")
+  mentorBookings    Booking[]              @relation("MentorBookings")
+
+  @@map("user_profiles")
+}
+
+model Skill {
+  id                String       @id @default(uuid()) @db.Uuid
+  name              String
+  userSkills        UserSkill[]
+
+  @@map("skills")
+}
+
+model UserSkill {
+  id                String       @id @default(uuid()) @db.Uuid
+  userProfileId     String       @db.Uuid
+  skillId           String       @db.Uuid
+  userProfile       UserProfile  @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+  skill             Skill        @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@map("user_skills")
+  @@index([userProfileId])
+  @@index([skillId])
+}
+
+model UserAvailability {
+  id                String       @id @default(uuid()) @db.Uuid
+  userProfileId     String       @db.Uuid
+  dayOfWeek         DayOfWeek
+  startTime         DateTime
+  endTime           DateTime
+  userProfile       UserProfile  @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  @@map("user_availability")
+  @@index([userProfileId])
+}
+
+model CollegeStudentReview {
+  id                String       @id @default(uuid()) @db.Uuid
+  reviewerProfileId String       @db.Uuid
+  reviewedProfileId String       @db.Uuid
+  rating            Int
+  reviewText        String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  reviewerProfile   UserProfile  @relation("GivenReviews", fields: [reviewerProfileId], references: [id], onDelete: Cascade)
+  reviewedProfile   UserProfile  @relation("ReceivedReviews", fields: [reviewedProfileId], references: [id], onDelete: Cascade)
+
+  @@map("college_student_reviews")
+  @@index([reviewerProfileId])
+  @@index([reviewedProfileId])
+}
+
+model Booking {
+  id                String        @id @default(uuid()) @db.Uuid
+  studentId         String        @db.Uuid
+  mentorId          String        @db.Uuid
+  status            BookingStatus @default(pending)
+  confirmedTime     DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  student           UserProfile   @relation("StudentBookings", fields: [studentId], references: [id], onDelete: Cascade)
+  mentor            UserProfile   @relation("MentorBookings", fields: [mentorId], references: [id], onDelete: Cascade)
+
+  @@map("bookings")
+  @@index([studentId])
+  @@index([mentorId])
+}
+
+enum Role {
+  high_school
+  college_student
+}
+
+enum DayOfWeek {
+  sunday
+  monday
+  tuesday
+  wednesday
+  thursday
+  friday
+  saturday
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  cancelled
+}
